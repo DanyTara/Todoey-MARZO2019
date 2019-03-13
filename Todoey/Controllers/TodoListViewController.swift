@@ -12,32 +12,21 @@ class TodoListViewController: UITableViewController {
     
     var itemArray = [Item]()
     
-    let defauts = UserDefaults.standard
+//    creo la directory per i miei dati (array) documens > Items.plist > aggiungo elementi (appending)
+    let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
+    
     
    
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
         
-        let newItem = Item()
-        newItem.title = "Find Mike"
-        itemArray.append(newItem)
+        print(dataFilePath)
         
-        let newItem2 = Item()
-        newItem2.title = "Buy Eggs"
-        itemArray.append(newItem2)
+        loadItems()
         
-        let newItem3 = Item()
-        newItem3.title = "Destroy Armageddon"
-        itemArray.append(newItem3)
-        
-        if let items = defauts.array(forKey: "TodoListArray") as? [Item] {
-            itemArray = items
         }
         
-      
-    }
-
 
 //    MARK - Tableview Datasource Methods
     
@@ -52,7 +41,6 @@ class TodoListViewController: UITableViewController {
         
         cell.accessoryType = item.done ? .checkmark : .none
         
-        
         return cell
             
         }
@@ -65,12 +53,12 @@ class TodoListViewController: UITableViewController {
     
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         
-
-        
 //  operatore booleano quindi con il simbolo !(NOT) si inverte
         itemArray[indexPath.row].done = !itemArray[indexPath.row].done
         
-        tableView.reloadData()
+        saveData()
+        
+        
 //        mi serve per togliere in grigio dalla riga selezionata
         tableView.deselectRow(at: indexPath, animated: true)
     }
@@ -78,7 +66,7 @@ class TodoListViewController: UITableViewController {
 //    MARK - Add New Items
     
     
-//    ricordarsi sequenza eventi. Se non creo la var textfield FUORI dalle clousure, non viene letta. E sopratutto riesco a temporeggiare gli eventi. Se la mettessi nella clousure, la closure temporalmnete avviene PRIMA della action, quindi sarebbe dispersa
+//    ricordarsi sequenza eventi. Se non creo la var textfield FUORI dalle clousure, non viene letta. E sopratutto riesco a temporeggiare gli eventi. Se la mettessi nella clousure, la closure temporalmente avviene PRIMA della action, quindi sarebbe dispersa
     @IBAction func addButtonPressed(_ sender: UIBarButtonItem) {
         
         var textField = UITextField()
@@ -94,26 +82,59 @@ class TodoListViewController: UITableViewController {
             
             self.itemArray.append(newItem)
             
-            self.defauts.set(self.itemArray, forKey: "TodoListArray")
+            self.saveData()
             
-            self.tableView.reloadData()
+            
         }
+        
+        
         alert.addTextField { (alertTextField) in
             alertTextField.placeholder = "Create new item"
             textField = alertTextField
-            
-            
+           
         }
             alert.addAction(action)
             present(alert, animated: true, completion: nil)
+        
+        }
+    
+    
+//    Model Manipulation methods
+    
+//    ENCODE e DECODER permette di convertire i miei dati (array) in un plist e riconvertirli (decode) in dati
+    func saveData() {
+        let encoder = PropertyListEncoder()
+        
+        do {
+            let data = try encoder.encode(itemArray)
+            try data.write(to: dataFilePath!)
+        } catch {
+            print("Error encoding item array, \(error)")
+        }
+        
+        tableView.reloadData()
+    }
+    
+    func loadItems() {
+        
+//        creo il percorso
+        if let data = try? Data(contentsOf: dataFilePath!){
+//            creo una nuova variabile DECODER
+            let decoder = PropertyListDecoder()
             
-            
+            do {
+//              nel mio array metto il risultato del DECODE (specifico l'infer della mia classe array>Item dal percorso sopra -data-)
+                itemArray = try decoder.decode([Item].self, from: data)
+            } catch {
+                print("Error decoding item array \(error)")
+            }
             
         }
         
-        
-        
     }
+    
+}
+
     
     
     
