@@ -13,6 +13,14 @@ class TodoListViewController: UITableViewController {
     
     var itemArray = [Item]()
     
+    var selectedCategory : Category? {
+        
+        didSet{
+            loadItems()
+        }
+        
+    }
+    
     let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
     
     
@@ -29,8 +37,6 @@ class TodoListViewController: UITableViewController {
         //        loadItems(with: request)
         
 //         10 - torno al loadItem senza paramenbtro perché ho aggiunyo quello di default
-
-        loadItems()
         
         
         }
@@ -96,6 +102,7 @@ class TodoListViewController: UITableViewController {
             let newItem = Item(context: self.context)
             newItem.title = textField.text!
             newItem.done = false
+            newItem.parentCategory = self.selectedCategory
             self.itemArray.append(newItem)
             
             self.saveItems()
@@ -131,13 +138,28 @@ class TodoListViewController: UITableViewController {
     
 //    4 -modifico la funzione scrivendo il parametro requesto DI TIPO NSFetchRequest che ritorna un array di tipo Item
 //    func loadItems() {
-//    5 - aggiungo with che è parametro esterno, request è paramentro interno. Ovvero quello chiamato all'interno della funzione
-    func loadItems(with request: NSFetchRequest<Item> = Item.fetchRequest()) {
+//    5 - aggiungo with che è parametro esterno, request è paramentro interno. Ovvero quello chiamato all'interno della funzione. Aggiungo il parametro predicate e lo setto come opzionale e nil (così diventa di default e se non lo chiamo non filtra nulla
+    func loadItems(with request: NSFetchRequest<Item> = Item.fetchRequest(), predicate : NSPredicate? = nil ) {
 
 //      7 - commento questa linea perché aggiungendo il parametro la richiesta è chiara e passo questa costante nell'overlaod dove devo ricaricare la tableview completa di tutti gli elementi
 //        let request : NSFetchRequest<Item> = Item.fetchRequest()
         //        - 9 : aggiungo il parametro di DEFAULt = Item.fetchRequest()
 //        func loadItems(with request: NSFetchRequest<Item>) {
+        
+        let categoryPredicate = NSPredicate(format: "parentCategory.name MATCHES %@", selectedCategory!.name!)
+//        11 - creo il predicato composto a cui passo il predicate dell'argomento dei parametri della funzione E l'array filtrato della categoria che voglio (categoryPredicate)
+//        let compoundPredicate = NSCompoundPredicate(andPredicateWithSubpredicates: [categoryPredicate, predicate])
+//        request.predicate = compoundPredicate
+        
+        //        14 - siccome il parametro predicate è nil, devo usare l'optional binding per il predicate. Quindi le due righe sopra diventano:
+//        se c'è l'additional predicate ricaricando l'array avrò l'array della mia categoria + il filtro aggiuntivo
+        if let additionalPredicate = predicate {
+            request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [categoryPredicate, additionalPredicate])
+//             altrimenti ricarico tutto l'array della mia categoria selezionata senza filtro
+        } else {
+            request.predicate = categoryPredicate
+        }
+        
 
         do {
         itemArray = try context.fetch(request)
@@ -164,12 +186,14 @@ extension TodoListViewController: UISearchBarDelegate {
 //            let predicate = NSPredicate(format: "title CONTAINS[cd] %@", searchBar.text!)
 //            request.predicate = predicate
    //        1- QUESTO DIVENTA COSì:
-            request.predicate = NSPredicate(format: "title CONTAINS[cd] %@", searchBar.text!)
-            
+//             request.predicate = NSPredicate(format: "title CONTAINS[cd] %@", searchBar.text!)
+            //            7- con l'aggiunta della selectedCategory e quindi del paramentro aggiuntico predicate, diventa:
+            let predicate = NSPredicate(format: "title CONTAINS[cd] %@", searchBar.text!)
 //            let sortDescriptor = NSSortDescriptor(key: "title", ascending: true)
 //            request.sortDescriptors = [sortDescriptor]
             // 2 - QUESTO DIVENTA COSì:
             request.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
+            
             
         
 //        do {
@@ -178,7 +202,8 @@ extension TodoListViewController: UISearchBarDelegate {
 //            print("\(error)")
 //        }
 //        3 - ANZICHè RISCRVERE IL context.fetchRequest modifico la funzione loadItems con il parametro request
-        loadItems(with: request)
+//         10 - questo loadItems() si modifica con il nuovo parametro predicate (che qui è con il filtro CONTAINS)
+            loadItems(with: request, predicate: predicate)
 //        6 -    e posso cancellare il reloadData che è gia contenuto nella funzione loadItems
 //        tableView.reloadData()
         
@@ -187,6 +212,7 @@ extension TodoListViewController: UISearchBarDelegate {
     
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
         if searchBar.text?.count == 0 {
+            
             loadItems()
             
             DispatchQueue.main.async {
